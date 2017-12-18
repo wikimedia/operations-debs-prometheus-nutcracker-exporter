@@ -1,0 +1,5 @@
+prometheus-nutcracker-exporter (0.1) jessie-wikimedia; urgency=medium
+
+  * First upload.
+
+ -- Filippo Giunchedi <filippo@debian.org>  Mon, 18 Dec 2017 14:46:33 +0100

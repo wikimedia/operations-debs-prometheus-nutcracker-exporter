@@ -1,0 +1,11 @@
+[Unit]
+Description=Prometheus Nutcracker exporter
+
+[Service]
+Restart=always
+User=prometheus
+EnvironmentFile=-/etc/default/prometheus-nutcracker-exporter
+ExecStart=/usr/bin/prometheus-nutcracker-exporter $ARGS
+
+[Install]
+WantedBy=multi-user.target
