@@ -1,0 +1,20 @@
+prometheus-nutcracker-exporter Debian package
+=============================================
+
+This package ships an exporter to collect nutcracker metrics and expose them in Prometheus format
+over HTTP.
+
+As of Dec 2017 we're running nutcracker on wikitech, thus the lowest common denominator in
+terms of distributions is trusty. To build the package using package_builder puppet module:
+
+  git clone https://gerrit.wikimedia.org/r/operations/debs/prometheus-nutcracker-exporter
+  cd prometheus-nutcracker-exporter
+  dpkg-source -b .
+  DIST=trusty-wikimedia sudo -E cowbuilder --build ../prometheus-nutcracker-exporter_$(dpkg-parsechangelog -n1 -SVersion).dsc
+
+And upload / install to all distributions:
+
+  # Assuming the build result is in $dir
+  reprepro --ignore=wrongdistribution  include trusty-wikimedia $dir/prometheus-nutcracker-exporter_$VERSION_amd64.chages
+  reprepro copy jessie-wikimedia trusty-wikimedia prometheus-nutcracker-exporter
+  reprepro copy stretch-wikimedia trusty-wikimedia prometheus-nutcracker-exporter
