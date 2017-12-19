@@ -11,10 +11,13 @@ terms of distributions is trusty. To build the package using package_builder pup
   cd prometheus-nutcracker-exporter
   dpkg-source -b .
   DIST=trusty-wikimedia sudo -E cowbuilder --build ../prometheus-nutcracker-exporter_$(dpkg-parsechangelog -n1 -SVersion).dsc
+  # Now add a new version temporarily for jessie/stretch rebuild
+  dch --rebuild # make sure to append sth like ~jessie1
+  DIST=jessie-wikimedia sudo -E cowbuilder --build ../prometheus-nutcracker-exporter_$(dpkg-parsechangelog -n1 -SVersion).dsc
 
 And upload / install to all distributions:
 
   # Assuming the build result is in $dir
   reprepro --ignore=wrongdistribution  include trusty-wikimedia $dir/prometheus-nutcracker-exporter_$VERSION_amd64.chages
-  reprepro copy jessie-wikimedia trusty-wikimedia prometheus-nutcracker-exporter
-  reprepro copy stretch-wikimedia trusty-wikimedia prometheus-nutcracker-exporter
+  reprepro --ignore=wrongdistribution  include jessie-wikimedia $dir/prometheus-nutcracker-exporter_$JESSIE_VERSION_amd64.chages
+  reprepro copy stretch-wikimedia jessie-wikimedia prometheus-nutcracker-exporter
