@@ -20,8 +20,9 @@ import logging
 import re
 import sys
 import time
-import urllib2
+import socket
 
+from contextlib import closing
 from prometheus_client import start_http_server, Summary
 from prometheus_client.core import (CounterMetricFamily, GaugeMetricFamily,
                                     REGISTRY)
@@ -33,11 +34,22 @@ class PrometheusNutcrackerCollector(object):
     scrape_duration = Summary(
             'nutcracker_scrape_duration_seconds', 'Nutcracker exporter scrape duration')
 
-    def __init__(self, stats_url='http://localhost:22222'):
-        self.stats_url = stats_url
+    def __init__(self, address, port):
+        self.address = address
+        self.port = port
 
-    def _load_stats(self, url):
-        fixed_json = re.sub(r'"("[^"]+")"(?=:)', r'\1', url.read())
+    def _load_stats(self, host, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        with closing(sock):
+            sock.connect((host, int(port)))
+            sock.settimeout(1)
+            raw_data = sock.recv(65536).decode('utf-8', errors='ignore')
+            sock.shutdown(socket.SHUT_RDWR)
+
+        # does not properly escape quotation marks in server aliases.
+        # https://github.com/twitter/twemproxy/issues/532
+        fixed_json = re.sub(r'"("[^"]+")"(?=:)', r'\1', raw_data.strip())
         return json.loads(fixed_json)
 
     def _pool_metrics(self, stats):
@@ -83,13 +95,11 @@ class PrometheusNutcrackerCollector(object):
 
         up = GaugeMetricFamily('nutcracker_up', 'Nutcracker is running')
         try:
-            url = urllib2.urlopen(self.stats_url)
-            if url.code == 200:
-                stats = self._load_stats(url)
-                up.add_metric([], 1)
+            stats = self._load_stats(self.address, self.port)
+            up.add_metric([], 1)
             yield up
-        except urllib2.URLError:
-            log.error('Could not connect to Nutcracker stats URL')
+        except socket.error as e:
+            log.error('Could not fetch Nutcracker stats', e)
             up.add_metric([], 0)
             yield up
             return
@@ -129,9 +139,9 @@ def main():
                         help='Listen on this address', default=':9191')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='Enable debug logging')
-    parser.add_argument('-u', '--url', metavar='URL',
-                        help='Fetch pdns-rec stats from this url',
-                        default='http://localhost:22222')
+    parser.add_argument('-s', '--stats', metavar='ADDRESS',
+                        help='Fetch nutcracker stats from this address',
+                        default=':22222')
     args = parser.parse_args()
 
     if args.debug:
@@ -143,7 +153,8 @@ def main():
 
     log.info('Starting nutcracker_exporter on %s:%s', address, port)
 
-    REGISTRY.register(PrometheusNutcrackerCollector(args.url))
+    stats_address, stats_port = args.stats.split(':', 1)
+    REGISTRY.register(PrometheusNutcrackerCollector(stats_address, stats_port))
     start_http_server(int(port), addr=address)
 
     try:
